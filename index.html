@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статус сервера</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+        
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 5px solid #ddd;
+            transition: all 0.3s ease;
+        }
+        
+        .status-card.online {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        
+        .status-card.offline {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        
+        .status-card.checking {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+        
+        .server-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .server-ip {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ddd;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.online {
+            background: #10b981;
+        }
+        
+        .status-indicator.offline {
+            background: #ef4444;
+            animation: none;
+        }
+        
+        .status-indicator.checking {
+            background: #f59e0b;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .last-check {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+        
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+            transition: background 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            background: #5568d3;
+        }
+        
+        .refresh-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖥️ Статус сервера</h1>
+        
+        <div class="status-card checking" id="statusCard">
+            <div class="server-name">Мой домашний сервер</div>
+            <div class="server-ip">109.174.3.167</div>
+            <div class="status">
+                <div class="status-indicator checking" id="statusIndicator"></div>
+                <span id="statusText">Проверка...</span>
+            </div>
+        </div>
+        
+        <div class="last-check" id="lastCheck">Последняя проверка: никогда</div>
+        
+        <button class="refresh-btn" id="refreshBtn" onclick="checkServer()">
+            Обновить статус
+        </button>
+    </div>
+
+    <script>
+        const SERVER_IP = '109.174.3.167';
+        const CHECK_INTERVAL = 60000; // Проверка каждые 60 секунд
+        
+        async function checkServer() {
+            const statusCard = document.getElementById('statusCard');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            const lastCheck = document.getElementById('lastCheck');
+            const refreshBtn = document.getElementById('refreshBtn');
+            
+            // Устанавливаем состояние "проверка"
+            statusCard.className = 'status-card checking';
+            statusIndicator.className = 'status-indicator checking';
+            statusText.textContent = 'Проверка...';
+            refreshBtn.disabled = true;
+            
+            try {
+                // Пытаемся загрузить изображение с сервера (быстрый способ проверки)
+                const startTime = Date.now();
+                const img = new Image();
+                
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Timeout'));
+                    }, 5000);
+                    
+                    img.onload = () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    };
+                    img.onerror = () => {
+                        clearTimeout(timeout);
+                        reject(new Error('Offline'));
+                    };
+                    
+                    // Добавляем timestamp для предотвращения кеширования
+                    img.src = `http://${SERVER_IP}/favicon.ico?_=${Date.now()}`;
+                });
+                
+                const responseTime = Date.now() - startTime;
+                
+                // Сервер доступен
+                statusCard.className = 'status-card online';
+                statusIndicator.className = 'status-indicator online';
+                statusText.textContent = `Онлайн (${responseTime}ms)`;
+                
+            } catch (error) {
+                // Сервер недоступен
+                statusCard.className = 'status-card offline';
+                statusIndicator.className = 'status-indicator offline';
+                statusText.textContent = 'Оффлайн';
+            }
+            
+            // Обновляем время последней проверки
+            const now = new Date();
+            lastCheck.textContent = `Последняя проверка: ${now.toLocaleTimeString('ru-RU')}`;
+            refreshBtn.disabled = false;
+        }
+        
+        // Автоматическая проверка при загрузке
+        checkServer();
+        
+        // Автоматическая проверка каждые 60 секунд
+        setInterval(checkServer, CHECK_INTERVAL);
+    </script>
+</body>
+</html>
